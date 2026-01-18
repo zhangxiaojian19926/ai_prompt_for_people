@@ -173,6 +173,25 @@ graph TD
 7. **标准化**：遵循Markdown规范
 8. **透明处理**：重大修改需说明理由
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/documents/` 目录：
+
+```
+outputs/documents/YYYY-MM-DD_文档名/
+├── README.md           # 元信息
+├── output.md           # 转换后文档
+├── original/           # 原始文件备份
+├── assets/             # 附件资源
+│   └── images/
+└── changelog.md        # 修改记录
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/documents/$(date +%Y-%m-%d)_文档名/{original,assets/images}
+```
+
 ## 质量检查清单
 
 在交付前必须验证：

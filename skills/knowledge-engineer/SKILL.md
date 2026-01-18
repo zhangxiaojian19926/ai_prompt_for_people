@@ -166,6 +166,26 @@ mindmap
 7. **有案例**：抽象概念必须配合具体示例
 8. **标注来源**：重要观点标注出处
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/knowledge/` 目录：
+
+```
+outputs/knowledge/YYYY-MM-DD_主题/
+├── README.md           # 元信息
+├── analysis.md         # 主分析文档
+├── knowledge_graph.md  # 知识图谱
+├── notes/              # 学习笔记
+│   └── chapter_xx.md
+└── diagrams/           # 思维导图
+    └── mindmap.mmd
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/knowledge/$(date +%Y-%m-%d)_主题/{notes,diagrams}
+```
+
 ## 质量检查清单
 
 在交付前必须验证：

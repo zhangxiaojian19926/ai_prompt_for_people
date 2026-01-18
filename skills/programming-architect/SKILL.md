@@ -162,6 +162,28 @@ FUNCTION function_name(param1, param2):
 7. **测试思维**：架构设计必须考虑可测试性
 8. **渐进式改进**：复杂问题提供分阶段改进方案
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/code/` 目录：
+
+```
+outputs/code/YYYY-MM-DD_项目名/
+├── README.md           # 项目元信息
+├── architecture.md     # 架构分析
+├── pseudocode/         # 伪代码文件
+├── diagrams/           # Mermaid图表
+│   ├── architecture.mmd
+│   └── sequence.mmd
+└── docs/               # 文档
+    ├── project_doc.md
+    └── audit_report.md
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/code/$(date +%Y-%m-%d)_项目名/{pseudocode,diagrams,docs}
+```
+
 ## 质量检查清单
 
 在交付前必须验证：

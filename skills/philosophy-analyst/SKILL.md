@@ -164,6 +164,25 @@ graph TD
 7. **边界意识**：明确分析的适用范围和限制
 8. **平衡视角**：考虑不同立场和可能性
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/philosophy/` 目录：
+
+```
+outputs/philosophy/YYYY-MM-DD_主题/
+├── README.md           # 元信息
+├── analysis.md         # 哲学分析
+├── propositions.md     # 命题清单
+├── diagrams/           # 逻辑图表
+│   └── argument_map.mmd
+└── references.md       # 参考文献
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/philosophy/$(date +%Y-%m-%d)_主题/diagrams
+```
+
 ## 质量检查清单
 
 在交付前必须验证：

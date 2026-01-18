@@ -215,6 +215,27 @@ description: |
 7. **读者视角**：从读者利益出发构建内容
 8. **视觉友好**：合理使用格式增强可读性
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/articles/` 目录：
+
+```
+outputs/articles/YYYY-MM-DD_文章标题/
+├── README.md           # 文章元信息
+├── article.md          # 文章正文
+├── images/             # 配图目录
+│   ├── cover.png
+│   └── ...
+└── sources/            # 研究资料（实时内容）
+    ├── research_log.md
+    └── source_xx.md
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/articles/$(date +%Y-%m-%d)_标题/{images,sources}
+```
+
 ## 质量检查清单
 
 在交付前必须验证：

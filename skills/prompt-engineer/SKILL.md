@@ -180,6 +180,25 @@ description: 提示词工程与优化专家。用于提示词生成、优化、�
 4. **可验证性**：必须包含明确的质量标准和检查点
 5. **自举能力**：本技能可用于优化自身
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/prompts/` 目录：
+
+```
+outputs/prompts/YYYY-MM-DD_提示词名/
+├── README.md           # 元信息
+├── prompt.md           # 最终提示词
+├── versions/           # 版本迭代
+│   ├── v1.md
+│   └── v2.md
+└── evaluation.md       # 评估报告
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/prompts/$(date +%Y-%m-%d)_提示词名/versions
+```
+
 ## 质量保证
 
 ### 自检清单

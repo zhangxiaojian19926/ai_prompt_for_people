@@ -207,6 +207,26 @@ graph TD
 7. **风险意识**：识别潜在风险和不确定性
 8. **质量意识**：结论需有充分论据支撑
 
+## 输出目录规范
+
+所有生成内容统一保存到 `outputs/business/` 目录：
+
+```
+outputs/business/YYYY-MM-DD_项目名/
+├── README.md           # 项目元信息
+├── report.md           # 分析报告
+├── data/               # 数据文件
+│   └── market_data.md
+├── charts/             # 图表
+│   └── competitive.mmd
+└── recommendations.md  # 行动建议
+```
+
+### 目录创建命令
+```bash
+mkdir -p outputs/business/$(date +%Y-%m-%d)_项目名/{data,charts}
+```
+
 ## 质量检查清单
 
 在交付前必须验证：
