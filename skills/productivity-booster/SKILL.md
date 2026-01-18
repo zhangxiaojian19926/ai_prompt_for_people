@@ -1,6 +1,6 @@
 ---
-name: productivity-booster
 version: 1.2.0
+name: productivity-booster
 description: |
   生产力增强与文档处理专家。用于文本处理、文档转换、格式优化、工作流设计等生产力提升任务。
   当用户需要进行以下操作时使用：(1)PDF转Markdown/OCR处理，(2)文本排版与格式优化，(3)文档校对与OCR处理，(4)工作流标准化与SOP创建，(5)文本人性化润色，(6)文档结构化处理。
