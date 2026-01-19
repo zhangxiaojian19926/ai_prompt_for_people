@@ -1,282 +1,320 @@
-# 智能文档全量重建与转换系统
+# PDF智能转换系统 v2.0
 
-## 系统概述
+> 基于 [Anthropic官方PDF技能](https://github.com/anthropics/skills/tree/main/skills/pdf) 最佳实践
 
-本系统专注于将扫描版PDF（图像类文档）精确转换为全量覆盖、内容无误、结构化清晰的Markdown文本，是企业级文档数字化的核心工具。
+## 概述
 
-## 核心能力
+本系统整合多种专业工具，实现PDF到Markdown的高质量转换：
 
-### 1. 高级光学字符识别（OCR）
+| 工具 | 用途 | 许可证 |
+|------|------|--------|
+| **pdfplumber** | 文本+表格提取（推荐） | MIT |
+| **pypdf** | 基础PDF操作 | BSD |
+| **pypdfium2** | 高速渲染（Chromium内核） | Apache/BSD |
+| **pytesseract** | OCR扫描件识别 | Apache |
+| **pdf2image** | PDF转图像 | MIT |
 
-- 对扫描版PDF的每一页、每一区域进行高精度文本识别
-- 对模糊区域保持审慎，必要时标记`[OCR模糊：原样保留]`
-- 支持多语言识别（中英文混合等）
+---
 
-### 2. 文档布局分析（DLA）
+## 快速开始
 
-- 识别并区分：
-  - 标题、子标题
-  - 正文段落
-  - 列表（有序/无序）
-  - 脚注/尾注
-  - 页眉、页脚
-  - 页码
-  - 表格
-  - 图片说明
+### 安装依赖
 
-- 推断文档的宏观逻辑层级（章节结构、词条结构等）
+```bash
+# Python库
+pip install pypdf pdfplumber pypdfium2 pytesseract pdf2image pillow
 
-### 3. 自然语言处理（NLP）与文本精炼
+# 系统依赖 (macOS)
+brew install poppler tesseract tesseract-lang
 
-**文本去噪**：
-- 移除OCR产生的明显噪点
-- 移除非文本碎片
-- 移除重复页眉页脚
-
-**智能拼接**：
-- 对跨页、换行、分页符导致的句子断裂进行语义级拼接
-- 保持段落完整性
-
-**标点规范**：
-- 除Markdown语法符号外，统一转换为中文全角标点
-
-**上下文校对**：
-- 通过上下文理解识别并修正OCR错别字
-- 如将"深度学刁"修正为"深度学习"
-- 重点恢复和统一专有名词
-
-## 处理流程
-
-### 标准工作流程
-
-```
-Step 1: 接收与确认输入
-    └─> 接收PDF文件及其简要描述
-
-Step 2: OCR识别阶段
-    └─> 对每一页进行高精度OCR
-    └─> 同步获取文本内容与布局信息
-
-Step 3: 布局分析与结构识别
-    └─> 识别标题、正文、列表、脚注等
-    └─> 构建初步层级结构树
-
-Step 4: 初步清理与段落拼接
-    └─> 移除页眉页脚、页码
-    └─> 消除噪点字符
-    └─> 语义拼接断裂段落
-
-Step 5: 上下文语义校对
-    └─> 修正OCR错误
-    └─> 统一专有名词
-
-Step 6: 脚注/尾注处理
-    └─> 扫描引用标记
-    └─> 整理至章节末尾
-
-Step 7: Markdown转换
-    └─> 映射标题层级
-    └─> 转换列表、引用、表格
-    └─> 统一标点与空白
-
-Step 8: 全量整合输出
-    └─> 按原文顺序整合
-    └─> 自查遗漏
-    └─> 封装为Markdown代码块
+# 系统依赖 (Ubuntu)
+sudo apt-get install poppler-utils tesseract-ocr tesseract-ocr-chi-sim
 ```
 
-### 硬性约束
+### 基础使用
 
-1. **准确性优先**：语义准确性与信息完整性为最高优先级
-2. **内容完整性**：不遗漏任何可识别的正文内容
-3. **结构保持**：保持原始文档的逻辑顺序与层级
-4. **审慎校对**：不确定时保留原文并标记
-5. **标点统一**：使用中文全角标点
+```bash
+# 自动选择最佳方法
+python scripts/pdf_converter.py --input document.pdf --output output.md
 
-## 输出格式
+# 扫描版PDF (使用OCR)
+python scripts/pdf_converter.py --input scanned.pdf --output output.md --ocr
 
-### 单一Markdown代码块输出
+# 提取表格
+python scripts/pdf_converter.py --input document.pdf --output output.md --tables
 
-```markdown
-# [文档标题]
-
-## 第一章 [章节名]
-
-### 1.1 [小节名]
-
-[正文内容...]
-
-[脚注内容整理...]
-
-## 第二章 [章节名]
-
-...
+# 同时渲染图像
+python scripts/pdf_converter.py --input document.pdf --output output.md --images
 ```
 
-### 标记规范
+---
 
-对无法处理的内容使用统一标记：
+## 处理策略
 
-```
-[无法识别]
-[OCR模糊：原文疑似为"xxx"]
-[未能完整解析的表格：...]
-[疑似错误：原文]
-```
+### 自动检测流程
 
-## 快速使用
-
-### 标准转换请求
-
-```
-请将以下PDF文档转换为结构化Markdown：
-
-文档描述：[类型、主题、特点]
-特殊要求：[如有]
-
-[上传PDF文件]
+```mermaid
+graph TD
+    A[输入PDF] --> B{分析PDF类型}
+    B -->|文本型| C[pdfplumber提取]
+    B -->|扫描版| D[OCR识别]
+    B -->|含表格| E[pdfplumber+表格]
+    C --> F[生成Markdown]
+    D --> F
+    E --> F
+    F --> G{质量检查}
+    G -->|通过| H[输出]
+    G -->|失败| I[尝试备用方法]
+    I --> F
 ```
 
-### 高级配置选项
+### 方法选择指南
 
-```
-请转换PDF文档，配置如下：
+| PDF类型 | 特征 | 推荐方法 | 预期质量 |
+|---------|------|---------|---------|
+| **文本型** | 可复制文字 | pdfplumber | ⭐⭐⭐⭐⭐ |
+| **扫描版** | 图像化页面 | OCR | ⭐⭐⭐ |
+| **混合型** | 部分图像 | pdfplumber + OCR | ⭐⭐⭐⭐ |
+| **含表格** | 结构化数据 | pdfplumber.extract_tables() | ⭐⭐⭐⭐ |
+| **数学公式** | LaTeX公式 | Mathpix Snip | ⭐⭐⭐⭐⭐ |
 
-文档类型：[技术手册/学术专著/词典/会议纪要]
-脚注样式：[上标数字/星号/方括号]
-复杂布局处理：[仅提取文字/尽量转换表格/标记说明]
-标点规范：[中文全角/保留原样/混合]
-术语表：[如有，提供专有名词列表]
-```
+---
 
-## 企业级应用场景
+## 核心API
 
-### 场景1：技术手册数字化
+### 1. 文本提取 (pdfplumber)
 
-```
-输入：扫描版技术手册PDF（200页）
+```python
+import pdfplumber
 
-处理要点：
-- 保留代码块格式
-- 识别技术术语
-- 保持操作步骤编号
-- 处理图片说明
-
-输出：完整可搜索的Markdown技术文档
+with pdfplumber.open("document.pdf") as pdf:
+    for page in pdf.pages:
+        text = page.extract_text()
+        print(text)
 ```
 
-### 场景2：学术文献转换
+### 2. 表格提取
 
-```
-输入：学术论文扫描PDF
+```python
+import pdfplumber
+import pandas as pd
 
-处理要点：
-- 脚注/尾注整理
-- 参考文献格式化
-- 公式标记（无法识别时标注）
-- 图表说明保留
-
-输出：可编辑的Markdown学术文档
-```
-
-### 场景3：历史档案数字化
-
-```
-输入：历史文献扫描件
-
-处理要点：
-- 繁体字识别
-- 竖排转横排
-- 模糊字迹标记
-- 保留原有结构
-
-输出：数字化存档文档
+with pdfplumber.open("document.pdf") as pdf:
+    for page in pdf.pages:
+        tables = page.extract_tables()
+        for table in tables:
+            df = pd.DataFrame(table[1:], columns=table[0])
+            print(df.to_markdown())
 ```
 
-## 质量保证
+### 3. 扫描版OCR
 
-### 输出质量检查清单
+```python
+import pytesseract
+from pdf2image import convert_from_path
 
-- [ ] 全部页面是否都已处理？
-- [ ] 正文内容是否完整无遗漏？
-- [ ] 标题层级是否正确？
-- [ ] 脚注是否正确归位？
-- [ ] OCR错误是否已修正？
-- [ ] 模糊内容是否已标记？
-- [ ] 标点是否已统一？
-- [ ] Markdown语法是否正确？
+images = convert_from_path('scanned.pdf', dpi=300)
+for i, img in enumerate(images):
+    text = pytesseract.image_to_string(img, lang='chi_sim+eng')
+    print(f"Page {i+1}:\n{text}")
+```
+
+### 4. 高速渲染 (pypdfium2)
+
+```python
+import pypdfium2 as pdfium
+
+pdf = pdfium.PdfDocument("document.pdf")
+for i, page in enumerate(pdf):
+    bitmap = page.render(scale=2.0)
+    img = bitmap.to_pil()
+    img.save(f"page_{i+1}.png")
+```
+
+---
+
+## 命令行工具
+
+### pdftotext (poppler-utils)
+
+```bash
+# 提取文本
+pdftotext input.pdf output.txt
+
+# 保留布局
+pdftotext -layout input.pdf output.txt
+
+# 指定页面范围
+pdftotext -f 1 -l 5 input.pdf output.txt
+```
+
+### pdfimages (提取图像)
+
+```bash
+# 提取所有图像
+pdfimages -all document.pdf images/img
+```
+
+### qpdf (PDF操作)
+
+```bash
+# 合并PDF
+qpdf --empty --pages file1.pdf file2.pdf -- merged.pdf
+
+# 分割PDF
+qpdf input.pdf --pages . 1-5 -- pages1-5.pdf
+```
+
+---
+
+## 高级配置
+
+### OCR语言设置
+
+| 语言代码 | 说明 |
+|---------|------|
+| `chi_sim` | 简体中文 |
+| `chi_tra` | 繁体中文 |
+| `eng` | 英文 |
+| `chi_sim+eng` | 中英混合（推荐） |
+| `jpn` | 日文 |
+
+### 性能优化
+
+```python
+# 大文件分块处理
+def process_large_pdf(pdf_path, chunk_size=10):
+    from pypdf import PdfReader
+    reader = PdfReader(pdf_path)
+    
+    for start in range(0, len(reader.pages), chunk_size):
+        end = min(start + chunk_size, len(reader.pages))
+        # 处理 pages[start:end]
+        yield reader.pages[start:end]
+```
 
 ---
 
 ## 人工优化建议
 
 > [!IMPORTANT]
-> AI OCR识别存在局限性，建议结合以下方式提升转换质量
+> AI OCR存在局限性，建议结合以下方式提升质量
 
 ### 1. 手动校对
 
-**必须校对的内容**：
-- OCR 识别错误（尤其是专业术语、人名、地名）
+**重点校对项**：
+- OCR识别错误（专业术语、人名）
 - 数学公式和特殊符号
-- 表格中的数字数据
-- 标点符号（中英文混合时易出错）
-
-**校对技巧**：
-```
-1. 使用编辑器的"查找替换"批量修正常见错误
-2. 关注 [OCR模糊] [无法识别] 等标记位置
-3. 特别注意页眉页脚残留
-4. 检查段落拼接是否正确
-```
+- 表格数据准确性
+- 标点符号
 
 ### 2. 专业工具辅助
 
-| 工具 | 适用场景 | 优势 |
-|------|---------|------|
-| **Adobe Acrobat Pro** | 通用文档 | OCR精度高，支持批量处理 |
-| **Mathpix Snip** | 数学/科学公式 | LaTeX公式识别极其精准 |
-| **ABBYY FineReader** | 复杂排版 | 多语言、多列排版识别强 |
-| **Tesseract + 自训练** | 特定领域 | 可针对专业术语优化 |
+| 工具 | 场景 | 优势 |
+|------|------|------|
+| **Adobe Acrobat Pro** | 通用 | OCR精度高 |
+| **Mathpix Snip** | 数学公式 | LaTeX识别极精准 |
+| **ABBYY FineReader** | 复杂排版 | 多语言支持 |
 
-**数学公式处理推荐流程**：
+**数学公式处理**：
 ```
-1. 使用 Mathpix Snip 截图识别公式
+1. 使用 Mathpix Snip 截图识别
 2. 获取 LaTeX 代码
-3. 替换到 Markdown 中：$公式$ 或 $$公式$$
+3. 替换到Markdown: $公式$ 或 $$公式$$
 ```
 
-### 3. 原文对照修正
+### 3. 原文对照
 
-**推荐工作流**：
 ```
-1. 左右分屏：原始PDF | 转换后的Markdown
-2. 逐页/逐章对照检查
-3. 重点关注：
-   - 图片说明是否完整
-   - 表格数据是否准确
-   - 脚注引用是否正确
-   - 章节编号是否连续
-4. 使用 diff 工具对比修改前后版本
+1. 左右分屏：原始PDF | 转换后Markdown
+2. 逐页对照检查
+3. 重点：图片说明、表格数据、脚注引用
 ```
 
-**常见OCR错误类型**：
+### 常见OCR错误
+
 | 类型 | 示例 | 说明 |
 |------|------|------|
-| 形近字 | 已→己，人→入 | 最常见错误 |
-| 标点 | 。→ . ，→ , | 中英混排时易错 |
-| 数字 | 0→O，1→l | 字体问题导致 |
-| 公式 | ∑→E，∫→f | 特殊符号识别差 |
-| 下标 | H₂O→H2O | 格式丢失 |
+| 形近字 | 已→己，人→入 | 最常见 |
+| 标点 | 。→ . ，→ , | 中英混排 |
+| 数字 | 0→O，1→l | 字体问题 |
+| 公式 | ∑→E，∫→f | 特殊符号 |
 
-### 4. 质量分级标准
+---
 
-| 等级 | 标准 | 后续处理 |
-|------|------|---------|
-| **A级** | 错误率 <1%，可直接使用 | 抽查校对 |
-| **B级** | 错误率 1-5%，基本可用 | 重点段落校对 |
-| **C级** | 错误率 5-10%，需校对 | 全文校对 |
-| **D级** | 错误率 >10%，需重新处理 | 考虑换专业工具 |
+## 质量分级
+
+| 等级 | 错误率 | 处理建议 |
+|------|--------|---------|
+| **A级** | <1% | 直接使用 |
+| **B级** | 1-5% | 重点校对 |
+| **C级** | 5-10% | 全文校对 |
+| **D级** | >10% | 换工具/外包 |
+
+---
+
+## 输出格式
+
+```markdown
+# [文档标题]
+
+**源文件**: document.pdf
+**转换日期**: 2026-01-20
+**页数**: 15
+
+---
+
+## 目录
+- [第1章](#第1章)
+- [第2章](#第2章)
+
+---
+
+## 第1章
+
+[正文内容...]
+
+### 表格1
+
+| 列1 | 列2 | 列3 |
+|-----|-----|-----|
+| 数据 | 数据 | 数据 |
+
+---
+
+## 附录：页面图像
+
+![第1页](images/page_001.png)
+```
+
+---
+
+## 快速参考
+
+| 任务 | 最佳工具 | 命令/代码 |
+|------|---------|----------|
+| 提取文本 | pdfplumber | `page.extract_text()` |
+| 提取表格 | pdfplumber | `page.extract_tables()` |
+| 扫描OCR | pytesseract | `image_to_string()` |
+| 渲染图像 | pypdfium2 | `page.render()` |
+| 命令行文本 | pdftotext | `pdftotext -layout` |
+| 提取图像 | pdfimages | `pdfimages -all` |
+| 数学公式 | Mathpix | 手动截图识别 |
+
+---
 
 ## 初始化
 
-作为智能文档全量重建与转换系统，我已准备好将你的扫描版PDF转换为结构化Markdown文档。请提供PDF文件和简要描述，我将确保全量覆盖、内容无误。
+作为PDF智能转换系统，我已准备好帮助你转换PDF文档。
+
+**自动转换**：
+```bash
+python scripts/pdf_converter.py --input your.pdf --output output.md
+```
+
+**扫描版PDF**：
+```bash
+python scripts/pdf_converter.py --input scanned.pdf --output output.md --ocr
+```
+
+请提供PDF文件，我将选择最佳方法进行转换。

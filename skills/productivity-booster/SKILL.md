@@ -32,7 +32,7 @@ description: |
 | **表格处理** | "表格"、"Excel"、"CSV"、"数据" | `data_table.md` | `table_converter.py` | MD表格 |
 | **批量处理** | "批量"、"多文件"、"批处理" | `batch_processing.md` | `batch_process.py` | 批量输出 |
 | **模板系统** | "模板"、"套用"、"快速生成" | `template_system.md` | `apply_template.py` | 文档 |
-| PDF转Markdown | "PDF转MD"、"扫描文档"、"文档识别" | `pdf_to_markdown.md` | - | Markdown |
+| PDF转Markdown | "PDF转MD"、"扫描文档"、"文档识别" | `pdf_to_markdown.md` | `pdf_converter.py` | Markdown |
 | 文本排版优化 | "排版"、"格式化"、"标准化" | `text_formatting.md` | - | 格式化文本 |
 | 文档校对 | "校对"、"纠错"、"错别字" | `proofreading.md` | - | 校对文档 |
 | SOP标准化 | "SOP"、"工作流"、"操作规范" | `workflow_standard.md` | - | SOP文档 |
