@@ -1,9 +1,9 @@
 ---
-version: 1.2.0
+version: 2.0.0
 name: programming-architect
 description: |
-  全栈编程架构分析与代码生成专家。用于软件项目架构分析、代码生成、伪代码设计、交互序列图绘制、项目文档生成等编程相关任务。
-  当用户需要进行以下操作时使用：(1)分析代码库架构与依赖关系，(2)生成结构化伪代码或流程图，(3)创建项目上下文文档，(4)设计系统交互序列图，(5)函数化分解复杂逻辑，(6)代码审计与安全分析，(7)API设计与规范，(8)测试策略制定。
+  全栈编程架构分析与代码生成专家。支持Agent开发、MCP工具构建、代码架构分析、API设计等。
+  当用户需要进行以下操作时使用：(1)Agent/Skill开发，(2)MCP工具开发，(3)架构分析，(4)代码生成，(5)API设计，(6)测试策略。
 ---
 
 # 编程全栈架构师
@@ -14,16 +14,19 @@ description: |
 
 ### 主要功能矩阵
 
-| 功能 | 触发关键词 | 参考文档 | 输出类型 |
-|------|-----------|----------|---------|
-| 架构综合分析 | "分析架构"、"代码结构"、"项目分析"、"系统设计" | `architecture_analysis.md` | 分析报告 |
-| 伪代码生成 | "伪代码"、"逻辑流程"、"步骤分解"、"算法设计" | `pseudocode_generator.md` | 伪代码 |
-| 序列图/流程图 | "序列图"、"时序图"、"交互流程"、"UML" | `sequence_diagram.md` | Mermaid图 |
-| 项目文档生成 | "项目文档"、"上下文文档"、"README"、"开发文档" | `project_doc.md` | 文档 |
-| 函数化分解 | "函数化"、"模块分解"、"重构"、"拆分" | `function_decomposition.md` | 代码结构 |
-| 代码审计 | "代码审计"、"安全检查"、"代码审查"、"漏洞扫描" | `code_audit.md` | 审计报告 |
-| API设计 | "API设计"、"接口设计"、"REST"、"GraphQL" | `api_design.md` | API规范 |
-| 测试策略 | "测试策略"、"单元测试"、"TDD"、"测试用例" | `testing_strategy.md` | 测试方案 |
+| 功能 | 触发关键词 | 参考文档 | Python脚本 | 输出类型 |
+|------|-----------|----------|-----------|---------|
+| **Agent开发** | "Agent开发"、"Skill创建"、"技能开发" | `agent_development.md` | `skill_generator.py` | 技能脚手架 |
+| **MCP工具** | "MCP"、"工具开发"、"Tool" | `mcp_tools.md` | `mcp_builder.py` | MCP工具 |
+| **代码注释** | "注释"、"文档生成"、"docstring" | `code_comments.md` | `doc_generator.py` | 代码文档 |
+| **依赖分析** | "依赖"、"dependency"、"引用分析" | `dependency_analysis.md` | `dep_analyzer.py` | 依赖报告 |
+| 架构分析 | "分析架构"、"代码结构" | `architecture_analysis.md` | - | 分析报告 |
+| 伪代码生成 | "伪代码"、"逻辑流程" | `pseudocode_generator.md` | - | 伪代码 |
+| 序列图/流程图 | "序列图"、"时序图" | `sequence_diagram.md` | - | Mermaid图 |
+| 项目文档 | "项目文档"、"README" | `project_doc.md` | - | 文档 |
+| 代码审计 | "代码审计"、"安全检查" | `code_audit.md` | - | 审计报告 |
+| API设计 | "API设计"、"接口设计" | `api_design.md` | - | API规范 |
+| 测试策略 | "测试策略"、"TDD" | `testing_strategy.md` | - | 测试方案 |
 
 ## 工作流程
 

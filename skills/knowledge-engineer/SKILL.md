@@ -1,5 +1,5 @@
 ---
-version: 1.2.0
+version: 2.0.0
 name: knowledge-engineer
 description: |
   深度学习与知识工程专家。用于概念分析、思维模型应用、知识提取、学习框架设计等学习和教育相关任务。

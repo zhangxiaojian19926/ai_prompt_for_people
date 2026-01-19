@@ -1,5 +1,5 @@
 ---
-version: 1.2.0
+version: 1.5.0
 name: philosophy-analyst
 description: |
   哲学思维与逻辑分析专家。用于深度命题分析、逻辑推理、批判性思维、哲学思辨等高级思维任务。
