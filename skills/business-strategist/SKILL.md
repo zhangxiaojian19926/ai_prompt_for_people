@@ -24,20 +24,18 @@ description: |
 
 ### 主要功能矩阵
 
-| 功能 | 触发关键词 | 参考文档 | 输出类型 |
-|------|-----------|----------|---------| 
-| **投资分析** | "投资分析"、"股票分析"、"标的分析" | `value_investing_v2.md` | 投资报告 |
-| **实时调研** | "市场调研"、"数据获取"、"信息收集" | `realtime_market_research.md` | 调研报告 |
-| **技术分析** | "技术分析"、"K线"、"趋势分析" | `technical_analysis.md` | 技术报告 |
-| **大盘分析** | "大盘分析"、"宏观分析"、"市场环境" | `market_overview.md` | 市场报告 |
-| **ETF分析** | "ETF"、"指数基金"、"被动投资" | `etf_analysis.md` | ETF报告 |
-| 行业洞察分析 | "行业分析"、"市场分析"、"行业研究" | `industry_insight.md` | 行业报告 |
-| 战略决策辅助 | "战略决策"、"SWOT"、"战略规划" | `strategic_decision.md` | 决策方案 |
-| 商业报告生成 | "商业报告"、"白皮书"、"研究报告" | `business_report.md` | 商业报告 |
-| 创意验证 | "创意验证"、"想法评估"、"可行性" | `idea_validation.md` | 验证报告 |
-| 竞争分析 | "竞争分析"、"竞品研究"、"对标分析" | `competitive_analysis.md` | 竞争报告 |
-| 商业模式设计 | "商业模式"、"盈利模式"、"价值主张" | `business_model.md` | 模式方案 |
-| 快速商业构建 | "快速构建"、"MVP"、"产品打造" | `fast_business_builder.md` | 构建方案 |
+| 功能 | 触发关键词 | 参考文档 | Python脚本 | 输出类型 |
+|------|-----------|----------|-----------|---------|
+| **投资分析** | "投资分析"、"股票分析"、"标的分析" | `value_investing_v2.md` | `stock_analyzer.py` | 投资报告 |
+| **市场调研** | "市场调研"、"行业调研"、"信息收集" | `realtime_market_research.md` | `market_research.py` | 调研报告 |
+| **估值计算** | "估值"、"DCF"、"PE估值" | `valuation_calc.md` | `valuation_calc.py` | 估值结果 |
+| **ETF分析** | "ETF"、"指数基金"、"消费ETF" | `etf_analysis.md` | `etf_analyzer.py` | ETF报告 |
+| 技术分析 | "技术分析"、"K线"、"趋势分析" | `technical_analysis.md` | - | 技术报告 |
+| 大盘分析 | "大盘分析"、"宏观分析"、"市场环境" | `market_overview.md` | - | 市场报告 |
+| 行业洞察分析 | "行业分析"、"市场分析"、"行业研究" | `industry_insight.md` | - | 行业报告 |
+| 战略决策辅助 | "战略决策"、"SWOT"、"战略规划" | `strategic_decision.md` | - | 决策方案 |
+| 商业报告生成 | "商业报告"、"白皮书"、"研究报告" | `business_report.md` | - | 商业报告 |
+| 竞争分析 | "竞争分析"、"竞品研究"、"对标分析" | `competitive_analysis.md` | - | 竞争报告 |
 
 ---
 
