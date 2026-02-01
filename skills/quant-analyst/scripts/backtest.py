@@ -123,8 +123,30 @@ class Backtester:
             })
 
     def _calculate_indicators(self):
-        if self.data is not None and 'ma5' not in self.data.columns and TechnicalIndicators:
-            self.data = TechnicalIndicators(self.data).add_all_indicators()
+        self.data['ma5'] = self.data['close'].rolling(window=5).mean()
+        self.data['ma10'] = self.data['close'].rolling(window=10).mean()
+        self.data['ma20'] = self.data['close'].rolling(window=20).mean()
+        self.data['ma60'] = self.data['close'].rolling(window=60).mean()
+        # ATR计算
+        high_low = self.data['high'] - self.data['low']
+        high_close = np.abs(self.data['high'] - self.data['close'].shift())
+        low_close = np.abs(self.data['low'] - self.data['close'].shift())
+        ranges = pd.concat([high_low, high_close, low_close], axis=1)
+        true_range = np.max(ranges, axis=1)
+        self.data['atr14'] = true_range.rolling(14).mean()
+        # MACD计算
+        exp12 = self.data['close'].ewm(span=12, adjust=False).mean()
+        exp26 = self.data['close'].ewm(span=26, adjust=False).mean()
+        self.data['macd'] = exp12 - exp26
+        # RSI计算
+        delta = self.data['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        self.data['rsi14'] = 100 - (100 / (1 + rs))
+        # 布林带
+        self.data['boll_upper'] = self.data['ma20'] + 2 * self.data['close'].rolling(20).std()
+        self.data['boll_lower'] = self.data['ma20'] - 2 * self.data['close'].rolling(20).std()
 
     @staticmethod
     def _calculate_expanding_percentile(series: pd.Series) -> pd.Series:
@@ -132,20 +154,60 @@ class Backtester:
         counts = series.expanding().count()
         return ((ranks - 1) / (counts - 1) * 100).fillna(50)
 
-    def _execute_backtest(self, signal_func: Callable) -> BacktestResult:
+    def _execute_backtest(self, signal_func: Callable, stop_loss_atr: float = 2.0) -> BacktestResult:
+        """
+        Args:
+            signal_func: 信号函数
+            stop_loss_atr: ATR止损倍数，默认为2.0倍ATR止损
+        """
         cash, shares, equity, self.trades = self.initial_capital, 0, [], []
+        stop_price = 0.0 # 动态止损价
+        
         for i, row in self.data.iterrows():
-            if i < self.warmup_period: equity.append(cash); continue
-            price = row['close']; signal, reason = signal_func(self.data.iloc[:i+1], row)
-            if signal == Signal.BUY and cash > 0:
-                buy_price = price * (1 + self.slippage); shares_to_buy = int(cash / (buy_price * (1 + self.commission)))
+            if i < self.warmup_period: equity.append(cash + shares * row['close']); continue
+            
+            # 1. 检查止损
+            if shares > 0 and stop_loss_atr > 0 and stop_price > 0:
+                if row['low'] < stop_price:
+                    # 触发止损
+                    sell_price = min(stop_price, row['open']) if row['open'] < stop_price else stop_price
+                    sell_price = sell_price * (1 - self.slippage)
+                    revenue = shares * sell_price * (1 - self.commission - self.stamp_duty)
+                    shares_sold = shares
+                    shares = 0
+                    cash += revenue
+                    self.trades.append(Trade(str(row['date']), Signal.SELL, sell_price, shares_sold, revenue, f"ATR止损触发"))
+                    equity.append(cash); continue
+
+            # 2. 生成信号
+            signal, reason = signal_func(self.data.iloc[:i+1], row)
+            
+            # 3. 执行交易
+            if signal == Signal.BUY and shares == 0:
+                buy_price = row['close'] * (1 + self.slippage)
+                shares_to_buy = int(cash / buy_price / 100) * 100
                 if shares_to_buy > 0:
-                    cost = shares_to_buy * buy_price * (1 + self.commission); cash -= cost; shares += shares_to_buy
-                    self.trades.append(Trade(str(row['date']), Signal.BUY, buy_price, shares_to_buy, cost, reason))
+                    cost = shares_to_buy * buy_price * (1 + self.commission)
+                    if cost <= cash:
+                        cash -= cost; shares += shares_to_buy
+                        self.trades.append(Trade(str(row['date']), Signal.BUY, buy_price, shares_to_buy, cost, reason))
+                        # 设置止损价: 买入价 - N * ATR
+                        atr = row.get('atr14', 0)
+                        if atr > 0:
+                            stop_price = row['close'] - (atr * stop_loss_atr)
+                        else:
+                            stop_price = row['close'] * 0.95 # 默认5%止损
+            
             elif signal == Signal.SELL and shares > 0:
-                sell_price = price * (1 - self.slippage); revenue = shares * sell_price * (1 - self.commission - self.stamp_duty)
-                cash += revenue; self.trades.append(Trade(str(row['date']), Signal.SELL, sell_price, shares, revenue, reason)); shares = 0
-            equity.append(cash + shares * price)
+                sell_price = row['close'] * (1 - self.slippage)
+                revenue = shares * sell_price * (1 - self.commission - self.stamp_duty)
+                shares_sold = shares
+                cash += revenue; shares = 0
+                self.trades.append(Trade(str(row['date']), Signal.SELL, sell_price, shares_sold, revenue, reason))
+                stop_price = 0.0
+            
+            equity.append(cash + shares * row['close'])
+        
         self.equity_curve = pd.DataFrame({'date': self.data['date'], 'equity': equity, 'price': self.data['close']})
         return self._calculate_metrics()
 

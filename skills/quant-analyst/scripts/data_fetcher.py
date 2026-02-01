@@ -228,6 +228,48 @@ class DataFetcher:
             "note": "请使用search_web获取最新估值数据"
         }
     
+    def get_treasury_yield(self, country: str = "CN", years: int = 10) -> float:
+        """
+        获取国债收益率
+        
+        Args:
+            country: "CN"(中国) 或 "US"(美国)
+            years: 年限, 默认10年
+            
+        Returns:
+            收益率百分比 (例如 2.35 表示 2.35%)
+        """
+        # 默认兜底值 (2025-2026年参考值)
+        default_yield = 1.90 if country == "CN" else 4.20
+        
+        if not HAS_AKSHARE:
+            return default_yield
+            
+        try:
+            if country == "CN":
+                # 获取中美国债收益率
+                df = self._retry_akshare(lambda: ak.bond_zh_us_rate(), max_retries=2)
+                if df is not None and not df.empty:
+                    # 获取最新一行
+                    latest = df.iloc[0]
+                    val = latest.get("中国国债收益率10年")
+                    # 确保是有效数值
+                    if pd.notna(val) and float(val) > 0:
+                        return float(val)
+            elif country == "US":
+                df = self._retry_akshare(lambda: ak.bond_zh_us_rate(), max_retries=2)
+                if df is not None and not df.empty:
+                    latest = df.iloc[0]
+                    val = latest.get("美国国债收益率10年")
+                    if pd.notna(val) and float(val) > 0:
+                         return float(val)
+        except Exception as e:
+            # 静默失败，使用默认值
+            pass
+            
+        return default_yield
+
+    
     def get_stock_valuation(self, symbol: str) -> Dict[str, Any]:
         """
         获取个股估值数据（PE、PB、市值等）
@@ -290,18 +332,45 @@ class DataFetcher:
             
         return result
         
-        # 尝试获取更详细的财务指标
+        # 尝试获取更详细的财务指标 (ROE, 净利率, 增长率)
         try:
-            # 获取个股财务指标
-            indi_df = ak.stock_a_indicator_lg(symbol=symbol)
-            if indi_df is not None and not indi_df.empty:
-                latest = indi_df.iloc[-1]
-                result["pe_ttm"] = float(latest.get("pe_ttm", 0) or 0)
-                result["pb"] = float(latest.get("pb", 0) or 0)
-                result["ps"] = float(latest.get("ps_ttm", 0) or 0)
-                result["roe"] = float(latest.get("roe", 0) or 0)
-        except Exception:
-            pass  # 乐咕数据可能不可用
+            # 策略A: 财务摘要接口 (stock_financial_abstract) - 包含ROE和增长率
+            fin_df = self._retry_akshare(lambda: ak.stock_financial_abstract(symbol=symbol), max_retries=2)
+            if fin_df is not None and not fin_df.empty:
+                # 按日期排序取最新
+                # 注意：列名可能因接口更新而变化，需防御性编程
+                cols = fin_df.columns
+                
+                # 获取最新的记录
+                latest = fin_df.iloc[-1]
+                
+                # ROE
+                if "净资产收益率" in cols:
+                     val = latest["净资产收益率"]
+                     if pd.notna(val): result["roe"] = float(val)
+                
+                # 净利率
+                if "销售净利率" in cols:
+                    val = latest["销售净利率"]
+                    if pd.notna(val): result["net_profit_margin"] = float(val)
+                
+                # 营收增长
+                if "营业收入同比增长" in cols:
+                    val = latest["营业收入同比增长"]
+                    if pd.notna(val): result["revenue_growth"] = float(val)
+                    
+                # 净利增长
+                if "净利润同比增长" in cols:
+                    val = latest["净利润同比增长"]
+                    if pd.notna(val): result["profit_growth"] = float(val)
+        
+        except Exception as e:
+            # 财务数据获取失败不影响主要流程
+            pass
+        
+        # 计算PEG (PE / Growth)
+        if result.get("pe_ttm") and result.get("profit_growth") and result["profit_growth"] > 0:
+            result["peg"] = round(result["pe_ttm"] / result["profit_growth"], 2)
         
         return result
 

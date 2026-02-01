@@ -228,20 +228,45 @@ class MarketIndicator:
     
     def get_market_overview(self) -> Dict[str, Any]:
         """获取完整的市场风向标概览"""
+        from data_fetcher import DataFetcher
+        
         self._data_warnings = []
         overview = {
             "title": "市场风向标",
             "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "indices": [],
+            "risk_free_rate": 2.3, # 默认值
+            "erp": 0.0,
             "sentiment": None,
             "data_sources": list(self.DATA_SOURCES.values()),
             "warnings": []
         }
         
+        # 获取无风险利率 (10年期国债收益率)
+        try:
+            fetcher = DataFetcher()
+            if hasattr(fetcher, 'get_treasury_yield'):
+                overview["risk_free_rate"] = fetcher.get_treasury_yield(country="CN")
+        except Exception as e:
+            self._data_warnings.append(f"获取无风险利率失败: {e}")
+
         # 从配置中获取要展示的指数列表
         main_indices = list(self.INDEX_CODES.keys())
+        avg_pe = 0
+        valid_count = 0
+        
         for index_name in main_indices:
-            overview["indices"].append(self.get_index_valuation(index_name))
+            idx_data = self.get_index_valuation(index_name)
+            overview["indices"].append(idx_data)
+            if idx_data.get("pe"):
+                avg_pe += idx_data["pe"]
+                valid_count += 1
+                
+        # 计算市场整体ERP (1/平均PE - 无风险利率)
+        if valid_count > 0:
+            market_pe = avg_pe / valid_count
+            # ERP = E/P - Rf
+            overview["erp"] = round((100 / market_pe) - overview["risk_free_rate"], 2)
         
         overview["sentiment"] = self.get_market_sentiment()
         overview["strategy"] = self._generate_strategy(overview)

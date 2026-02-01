@@ -202,6 +202,46 @@ prompt = fetcher.generate_browser_prompt("159928")
 
 ---
 
+### 高级特性 (v2.2 深度优化)
+
+#### 1. 宏观风向标
+- **股权风险溢价 (ERP)**: 实时计算 `(1/PE) - 10年国债收益率`，判断市场顶底。
+- **各类指数估值**: 沪深300、中证500、创业板指等。
+- **市场情绪**: 集成融资余额、北向资金、涨跌家数比。
+
+#### 2. 高级回测风控
+- **ATR动态止损**: 引入平均真实波幅(ATR)指标，由于市场波动率决定止损幅度。
+- **多策略支持**: 均线交叉、MACD、RSI、布林带、价值定投。
+
+#### 4. 多因子智能选股 (New!)
+- **四大维度**: 质量(Quality) + 价值(Value) + 成长(Growth) + 动量(Momentum)
+- **自动打分**: 基于ROE、PE、PEG、RSI等指标对股票池进行综合评分。
+- **好行业好公司**: 预置各行业龙头池，支持自定义筛选。
+
+---
+
+## 使用指南
+
+### 1. 启动选股器
+
+```bash
+python scripts/multifactor_screener.py
+```
+
+### 2. 运行回测
+
+```bash
+# 均线结合ATR风控回测
+python scripts/backtest.py -s 159928 -t ma_cross --stop-loss-atr 2.0
+```
+
+### 3. 查看市场风向标
+
+```bash
+python scripts/market_indicator.py
+```
+
+---
 
 ## 情绪分析系统
 
