@@ -4,12 +4,19 @@
 
 用途：获取A股/ETF的实时行情、历史K线、估值数据、资金流向等
 
+多数据源架构：
+    1. AKShare API - 主要数据源，稳定可靠
+    2. 浏览器MCP - 实时验证数据源（通过web_data_fetcher.py）
+    3. 本地缓存 - 离线数据源
+
+当AKShare数据与浏览器获取的实时数据不一致时，以浏览器数据为准。
+
 使用示例：
     from data_fetcher import DataFetcher
     
     fetcher = DataFetcher()
     
-    # 获取实时行情
+    # 获取实时行情 (AKShare)
     realtime = fetcher.get_realtime_quote("159928")
     
     # 获取历史K线
@@ -17,10 +24,17 @@
     
     # 获取估值数据
     valuation = fetcher.get_valuation("000932")  # 中证主要消费指数
+    
+    # 浏览器实时数据验证（在Agent环境中）
+    # from web_data_fetcher import WebDataFetcher
+    # web_fetcher = WebDataFetcher()
+    # prompt = web_fetcher.generate_browser_prompt("159928")
+    # 然后使用browser_subagent执行
 
 依赖：
     pip install akshare pandas numpy
 """
+
 
 import pandas as pd
 import numpy as np
@@ -42,6 +56,17 @@ class DataFetcher:
         self.cache = {}
         self.cache_time = {}
         self.cache_duration = 300  # 缓存5分钟
+        
+    def _retry_akshare(self, func, max_retries=3):
+        """AKShare API 调用重试机制"""
+        import time
+        for i in range(max_retries):
+            try:
+                return func()
+            except Exception as e:
+                if i == max_retries - 1:
+                    raise e
+                time.sleep(1 * (i + 1))  # 指数退避
     
     def _is_cache_valid(self, key: str) -> bool:
         """检查缓存是否有效"""
@@ -202,6 +227,84 @@ class DataFetcher:
             "pb_percentile": 0,
             "note": "请使用search_web获取最新估值数据"
         }
+    
+    def get_stock_valuation(self, symbol: str) -> Dict[str, Any]:
+        """
+        获取个股估值数据（PE、PB、市值等）
+        
+        Args:
+            symbol: 股票代码，如 "601766", "000858"
+            
+        Returns:
+            包含PE、PB、市值等估值指标的字典
+        """
+        if not HAS_AKSHARE:
+            return {"error": "请安装akshare", "symbol": symbol}
+        
+        result = {
+            "symbol": symbol,
+            "name": "",
+            "pe_ttm": None,
+            "pe_static": None,
+            "pb": None,
+            "ps": None,
+            "market_cap": None,
+            "circulating_cap": None,
+            "roe": None,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        try:
+            # 策略1: 尝试从实时行情获取 (包含PE/PB/市值)
+            # 使用重试机制解决连接问题
+            df = self._retry_akshare(lambda: ak.stock_zh_a_spot_em())
+            
+            row = df[df['代码'] == symbol]
+            if not row.empty:
+                row = row.iloc[0]
+                result["name"] = str(row.get("名称", ""))
+                result["pe_ttm"] = float(row.get("市盈率-动态", 0) or 0)
+                result["pb"] = float(row.get("市净率", 0) or 0)
+                result["market_cap"] = float(row.get("总市值", 0) or 0) / 1e8  # 亿元
+                result["circulating_cap"] = float(row.get("流通市值", 0) or 0) / 1e8  # 亿元
+                return result
+        except Exception as e:
+            # 策略1失败，记录错误但继续尝试
+            pass
+
+        try:
+            # 策略2: 尝试获取个股详细信息 (stock_individual_info_em)
+            # 这个接口通常更稳定
+            info_df = self._retry_akshare(lambda: ak.stock_individual_info_em(symbol=symbol))
+            if info_df is not None and not info_df.empty:
+                 # 将Series转换为字典映射
+                info_map = dict(zip(info_df['item'], info_df['value']))
+                
+                result["name"] = str(info_map.get("股票简称", symbol))
+                result["market_cap"] = float(info_map.get("总市值", 0) or 0) / 1e8
+                result["circulating_cap"] = float(info_map.get("流通市值", 0) or 0) / 1e8
+                
+                return result
+        except Exception as e:
+            result["error"] = f"所有接口尝试失败: {str(e)[:50]}"
+            
+        return result
+        
+        # 尝试获取更详细的财务指标
+        try:
+            # 获取个股财务指标
+            indi_df = ak.stock_a_indicator_lg(symbol=symbol)
+            if indi_df is not None and not indi_df.empty:
+                latest = indi_df.iloc[-1]
+                result["pe_ttm"] = float(latest.get("pe_ttm", 0) or 0)
+                result["pb"] = float(latest.get("pb", 0) or 0)
+                result["ps"] = float(latest.get("ps_ttm", 0) or 0)
+                result["roe"] = float(latest.get("roe", 0) or 0)
+        except Exception:
+            pass  # 乐咕数据可能不可用
+        
+        return result
+
     
     def get_north_flow(self, days: int = 5) -> pd.DataFrame:
         """

@@ -1,13 +1,13 @@
 ---
-version: 2.0.0
+version: 2.1.0
 name: quant-analyst
 description: |
   AI量化分析大师 - 融合巴菲特、段永平、Howard Marks等投资大师智慧的机构级量化分析系统。
-  专注A股+ETF市场，支持实时数据获取、情绪分析、周期定位、策略回测。
-  当用户需要以下操作时使用：(1)ETF/A股量化分析，(2)策略回测，(3)情绪面分析，(4)周期定位，(5)智能选股，(6)仓位管理。
+  专注A股+ETF市场，支持实时数据获取、情绪分析、周期定位、策略回测、市场风向标。
+  当用户需要以下操作时使用：(1)ETF/A股量化分析，(2)策略回测，(3)情绪面分析，(4)周期定位，(5)智能选股，(6)仓位管理，(7)市场风向标。
 ---
 
-# AI量化分析大师 v2.0
+# AI量化分析大师 v2.1
 
 > 融合百年投资大师智慧的机构级量化分析系统
 
@@ -15,6 +15,8 @@ description: |
 
 | 能力 | 说明 | 触发关键词 |
 |------|------|-----------|
+| **市场风向标** | PE百分位计算、综合估值、大师策略 | "风向标"、"估值"、"PE百分位" |
+| **个股/ETF分析** | 任意A股或ETF的实时行情+量化分析 | "分析xxx"、股票代码 |
 | **情绪分析** | 恐惧贪婪指数、资金情绪、市场广度 | "情绪"、"恐惧贪婪"、"市场情绪" |
 | **周期定位** | 经济、货币、股市、行业四维周期 | "周期"、"位置"、"阶段" |
 | **策略分析** | 价值、趋势、逆向、定投策略 | "策略"、"分析"、"建议" |
@@ -23,6 +25,65 @@ description: |
 | **仓位管理** | 动态仓位计算 | "仓位"、"配置"、"比例" |
 
 ---
+
+## 🚀 Agent执行指南（重要）
+
+> **当用户请求分析任意股票/ETF时，Agent应按以下流程执行：**
+
+### 第一步：获取实时行情（浏览器MCP优先）
+
+根据用户输入的证券代码，使用浏览器工具获取实时数据：
+
+```
+browser_subagent(
+    TaskName="获取{股票名称}实时行情",
+    Task="访问东方财富 https://quote.eastmoney.com/{市场}{代码}.html
+          获取：最新价、涨跌幅、成交额、今开/最高/最低/昨收",
+    RecordingName="get_{代码}_quote"
+)
+```
+
+**市场代码规则：**
+- 上海市场(6开头): `sh` → `https://quote.eastmoney.com/sh600519.html`
+- 深圳市场(0/3开头): `sz` → `https://quote.eastmoney.com/sz000858.html`
+- ETF(1/5开头): `sz` or `sh` → `https://quote.eastmoney.com/sz159928.html`
+
+### 第二步：获取历史数据（AKShare）
+
+```python
+from data_fetcher import DataFetcher
+fetcher = DataFetcher()
+history = fetcher.get_history_kline("{代码}", "2024-01-01", "2025-12-31")
+```
+
+### 第三步：获取市场估值环境
+
+```python
+from market_indicator import MarketIndicator
+indicator = MarketIndicator()
+overview = indicator.get_market_overview()
+```
+
+### 第四步：策略回测（可选）
+
+```python
+from backtest import Backtester
+bt = Backtester(symbol="{代码}", start_date="2024-01-01", end_date="2025-12-31")
+result = bt.run_ma_cross_strategy()
+print(bt.generate_report())
+```
+
+### 第五步：输出分析报告
+
+结合以上数据，输出包含以下内容的分析报告：
+1. 实时行情（来自浏览器MCP）
+2. 市场估值环境
+3. 技术指标分析
+4. 大师视角点评
+5. 投资建议
+
+---
+
 
 ## 投资大师智慧框架
 
@@ -55,6 +116,92 @@ description: |
 - [ ] 发现更好的投资机会
 
 ---
+
+## 市场风向标系统
+
+> 一键获取A股主要指数估值状态和大师投资建议
+
+### 使用方法
+
+```bash
+# 在conda环境中运行
+conda activate ai_quant_analyst
+python scripts/market_indicator.py
+```
+
+### 输出示例
+
+```
+【主要指数估值】
+沪深300    | PE: 14.31 | 百分位: 14.40% | 🟢 低估
+上证50     | PE: 11.50 | 百分位: 18.00% | 🟢 低估
+上证指数   | PE: 16.90 | 百分位: 25.00% | 🟡 偏低估
+
+【投资策略】建议仓位: 60-70% | 策略: 逐步建仓
+```
+
+### PE百分位计算方法
+
+采用果仁网方式：`(当前排名-1) / (样本数-1) × 100%`
+
+| 百分位 | 状态 | 操作建议 |
+|--------|------|----------|
+| < 20% | 🟢 低估 | 积极买入 |
+| 20-40% | 🟡 偏低估 | 可以买入 |
+| 40-60% | 🟡 合理 | 持有观望 |
+| 60-80% | 🟠 偏高估 | 考虑减仓 |
+| > 80% | 🔴 高估 | 准备卖出 |
+
+### HTML可视化
+
+```bash
+open outputs/quant/market_dashboard.html
+```
+
+
+### 数据来源（多源验证架构）
+
+> 数据准确性是量化分析的生命线，本系统采用多源验证确保数据可靠性
+
+#### 数据源优先级
+
+| 优先级 | 数据源 | 说明 | 使用场景 |
+|--------|--------|------|----------|
+| 🥇 1st | **浏览器MCP** | 实时爬取东方财富/新浪等 | 实时行情验证 |
+| 🥈 2nd | **AKShare API** | 稳定可靠的金融数据接口 | 常规数据获取 |
+| 🥉 3rd | **本地缓存** | 历史数据本地存储 | 离线分析 |
+
+#### 官方数据来源
+
+| 数据类型 | 官方来源 |
+|----------|----------|
+| 指数PE/PB | 中证指数公司 (csindex.com.cn) |
+| 融资融券 | 上交所官方披露 (sse.com.cn) |
+| 北向资金 | 港交所披露易 (hkex.com.hk) |
+| 实时行情 | 东方财富 (eastmoney.com) |
+
+#### 浏览器MCP实时数据获取
+
+当AKShare数据延迟或不一致时，可使用浏览器MCP获取最新行情：
+
+```python
+from web_data_fetcher import WebDataFetcher
+
+fetcher = WebDataFetcher()
+# 生成浏览器任务
+prompt = fetcher.generate_browser_prompt("159928")
+
+# 在Agent环境中调用浏览器工具
+# result = browser_subagent(Task=prompt, TaskName="获取实时行情")
+
+# 与AKShare数据对比验证
+# validation = fetcher.validate_against_akshare(web_data, akshare_data)
+```
+
+**数据不一致时以浏览器MCP获取的数据为准。**
+
+---
+
 
 ## 情绪分析系统
 

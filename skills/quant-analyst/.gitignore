@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# Data & Cache
+data/
+scripts/tests/temp_cache/
+*.csv
+*.html
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
