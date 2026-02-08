@@ -86,18 +86,36 @@ class MarketIndicator:
         self.DATA_SOURCES = self.data_sources_config
     
     def calculate_percentile(self, current_value: float, 
-                            historical_values: List[float]) -> float:
+                            historical_values: List[float]) -> tuple:
         """
         计算PE/PB百分位（果仁网方式）
+
+        数据可靠性校验:
+            1. 样本量必须>=250 (约1年交易日) 才能输出可靠百分位
+            2. 样本量<250 返回 (None, "数据不足")
+            3. 输出值附带可靠性标记
+            
+        Returns:
+            tuple: (percentile, reliability_note)
         """
+        MIN_SAMPLES = 250  # 至少1年数据
+        
         if not historical_values or len(historical_values) < 2:
-            return 50.0
+            return None, "无历史数据"
+        
+        sample_count = len(historical_values)
         
         all_values = sorted(historical_values + [current_value])
         rank = all_values.index(current_value) + 1
         percentile = (rank - 1) / (len(all_values) - 1) * 100
         
-        return round(percentile, 2)
+        # 可靠性评估
+        if sample_count < 50:
+            return round(percentile, 2), f"⚠️样本极少({sample_count}条)"
+        elif sample_count < MIN_SAMPLES:
+            return round(percentile, 2), f"⚠️样本不足({sample_count}条)"
+        else:
+            return round(percentile, 2), f"✅可靠({sample_count}条)"
     
     def get_valuation_status(self, percentile: float) -> Dict[str, str]:
         """
@@ -136,11 +154,14 @@ class MarketIndicator:
                     
                     # 获取历史PE用于计算百分位
                     historical_pe = df['市盈率1'].astype(float).tolist()[:-1]
-                    if len(historical_pe) >= 10:
-                        pe_percentile = self.calculate_percentile(current_pe, historical_pe)
-                    else:
-                        # 数据不足时使用默认估算
+                    
+                    # 使用增强的百分位计算（返回元组）
+                    pe_percentile, reliability = self.calculate_percentile(current_pe, historical_pe)
+                    
+                    # 如果百分位计算失败，使用默认值并标记
+                    if pe_percentile is None:
                         pe_percentile = 50.0
+                        reliability = "⚠️数据不足，使用默认值"
                     
                     status_info = self.get_valuation_status(pe_percentile)
                     
@@ -149,6 +170,7 @@ class MarketIndicator:
                         "index_code": index_code,
                         "pe": round(current_pe, 2),
                         "pe_percentile": round(pe_percentile, 2),
+                        "reliability": reliability,  # 新增可靠性标记
                         "dividend_yield": round(float(latest.get('股息率1', 0)), 2),
                         **status_info,
                         "data_source": "中证指数公司 (csindex.com.cn)",
@@ -370,8 +392,9 @@ def main():
 
         print("【主要指数估值】\n" + "-" * 60)
         for idx in overview.get('indices', []):
+            reliability = idx.get('reliability', '')
             print(f"{idx.get('index_name','N/A'):8} | PE: {idx.get('pe', 0):6.2f} | "
-                  f"百分位: {idx.get('pe_percentile', 0):5.2f}% | {idx.get('emoji','')}{idx.get('status','')}")
+                  f"百分位: {idx.get('pe_percentile', 0):5.2f}% | {idx.get('emoji','')}{idx.get('status','')} | {reliability}")
         
         strategy = overview.get('strategy', {})
         print("\n【投资策略建议】\n" + "-" * 60)

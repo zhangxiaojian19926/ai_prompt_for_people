@@ -379,9 +379,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="运行回测引擎.")
     parser.add_argument("-s", "--symbol", type=str, required=True, help="股票/ETF代码 (例如: 159928)")
     parser.add_argument(
-        "-t", "--strategy", type=str, required=True, 
-        choices=['ma_cross', 'value', 'dynamic'], 
-        help="要运行的策略: 'ma_cross', 'value', 'dynamic'"
+        "-t", "--strategy", type=str, default='ma_cross',
+        choices=['ma_cross', 'value', 'dynamic'],
+        help="要运行的策略: 'ma_cross'(默认), 'value', 'dynamic'"
     )
     # 默认回测周期为过去一年
     end_date = date.today().strftime("%Y-%m-%d")
@@ -412,6 +412,8 @@ if __name__ == "__main__":
     elif args.strategy == 'dynamic':
         print("\n=== 动态仓位策略 (仓位驱动) ===")
         result = bt.run_dynamic_position_strategy(index_name=args.index)
+
+    bt.result = result  # 设置结果以便 generate_report() 访问
 
     if result:
         print(bt.generate_report())

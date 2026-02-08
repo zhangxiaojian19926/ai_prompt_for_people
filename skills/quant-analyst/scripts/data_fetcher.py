@@ -149,7 +149,12 @@ class DataFetcher:
     def get_history_kline(self, symbol: str, start_date: str, end_date: str, 
                           period: str = "daily", adjust: str = "qfq") -> pd.DataFrame:
         """
-        获取历史K线数据
+        获取历史K线数据 (三级熔断机制)
+        
+        数据源优先级:
+            1. AKShare API (带重试)
+            2. 本地CSV缓存
+            3. 返回空DataFrame + 警告
         
         Args:
             symbol: 股票/ETF代码
@@ -161,52 +166,67 @@ class DataFetcher:
         Returns:
             DataFrame with columns: date, open, high, low, close, volume, amount
         """
-        if not HAS_AKSHARE:
-            return pd.DataFrame()
+        import os
         
-        try:
-            start = start_date.replace("-", "")
-            end = end_date.replace("-", "")
-            
-            if symbol.startswith(("51", "56", "58", "15", "16")):
-                # ETF
-                df = ak.fund_etf_hist_em(
-                    symbol=symbol,
-                    period=period,
-                    start_date=start,
-                    end_date=end,
-                    adjust=adjust
-                )
-            else:
-                # 股票
-                df = ak.stock_zh_a_hist(
-                    symbol=symbol,
-                    period=period,
-                    start_date=start,
-                    end_date=end,
-                    adjust=adjust
-                )
-            
-            # 标准化列名
-            df = df.rename(columns={
-                "日期": "date",
-                "开盘": "open",
-                "收盘": "close",
-                "最高": "high",
-                "最低": "low",
-                "成交量": "volume",
-                "成交额": "amount",
-                "涨跌幅": "change_pct"
-            })
-            
-            df["date"] = pd.to_datetime(df["date"])
-            df = df.sort_values("date").reset_index(drop=True)
-            
-            return df
-            
-        except Exception as e:
-            print(f"获取历史数据失败: {e}")
-            return pd.DataFrame()
+        # 缓存文件路径
+        cache_dir = os.path.join(os.path.dirname(__file__), "..", "data", "cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_file = os.path.join(cache_dir, f"{symbol}_{start_date}_{end_date}_{period}_{adjust}.csv")
+        
+        # ============ 第一层: 尝试AKShare API (带重试) ============
+        if HAS_AKSHARE:
+            try:
+                start = start_date.replace("-", "")
+                end = end_date.replace("-", "")
+                
+                def _fetch_data():
+                    if symbol.startswith(("51", "56", "58", "15", "16")):
+                        return ak.fund_etf_hist_em(
+                            symbol=symbol, period=period, start_date=start, end_date=end, adjust=adjust
+                        )
+                    else:
+                        return ak.stock_zh_a_hist(
+                            symbol=symbol, period=period, start_date=start, end_date=end, adjust=adjust
+                        )
+                
+                # 使用重试机制
+                df = self._retry_akshare(_fetch_data, max_retries=3)
+                
+                if df is not None and not df.empty:
+                    # 标准化列名
+                    df = df.rename(columns={
+                        "日期": "date", "开盘": "open", "收盘": "close", "最高": "high",
+                        "最低": "low", "成交量": "volume", "成交额": "amount", "涨跌幅": "change_pct"
+                    })
+                    df["date"] = pd.to_datetime(df["date"])
+                    df = df.sort_values("date").reset_index(drop=True)
+                    
+                    # 数据有效性校验
+                    if len(df) < 5:
+                        print(f"⚠️ [数据警告] {symbol} 数据量不足: {len(df)}条")
+                    
+                    # 保存到本地缓存
+                    df.to_csv(cache_file, index=False)
+                    print(f"✅ [数据成功] {symbol} 获取 {len(df)} 条记录，已缓存")
+                    return df
+                    
+            except Exception as e:
+                print(f"⚠️ [API失败] {symbol}: {e}")
+        
+        # ============ 第二层: 读取本地缓存 ============
+        if os.path.exists(cache_file):
+            try:
+                df = pd.read_csv(cache_file)
+                if not df.empty and "date" in df.columns:
+                    df["date"] = pd.to_datetime(df["date"])
+                    print(f"📁 [缓存加载] {symbol} 使用本地缓存 ({len(df)}条)")
+                    return df
+            except Exception as e:
+                print(f"⚠️ [缓存读取失败] {e}")
+        
+        # ============ 第三层: 返回空数据 + 警告 ============
+        print(f"🚨 [严重警告] {symbol} 无法获取任何数据！请检查网络或API状态。")
+        return pd.DataFrame()
     
     def get_valuation(self, index_code: str) -> Dict[str, Any]:
         """
